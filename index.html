@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pt-br" lang="pt-br">
+
+<head>
+    <META HTTP-EQUIV="PRAGMA" CONTENT="NO-CACHE" />
+    <META HTTP-EQUIV="cache-control" CONTENT="NO-CACHE" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Camunda Tasks - Batch Approval</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+        integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+</head>
+
+<body>
+    <div class="container">
+        <br>
+        <div class="row" id="titulo"></div>
+        <br>
+        <a href="http://localhost:8080/camunda-task-batch-approval//index.html"><button type="button" class="btn btn-outline-success">All
+                tasks</button></a>
+        <a href="http://localhost:8080/camunda-task-batch-approval//index.html?candidateGroups=gerente-do-cliente"><button type="button"
+                class="btn btn-outline-primary">My tasks</button></a>
+        <br>
+        <br>
+        <div class="row" id="tasks"></div>
+        <div class="row"><br></div>
+        <input type="button" id="completeTasks" value="Complete selected tasks" />
+        <script>
+            function getUrlVars() {
+                var vars = {};
+                var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
+                    vars[key] = value;
+                });
+                return vars;
+            }
+            var candidateGroups = getUrlVars()["candidateGroups"];
+            if (candidateGroups == undefined) {
+                candidateGroups = "";
+            }
+            document.getElementById("titulo").innerHTML = "<h1 id='title'>Camunda Tasks - Batch Approval " + candidateGroups + "</h1>";
+
+        </script>
+
+        <script>
+            if (candidateGroups == "") {
+                var url = 'http://localhost:8080/engine-rest/task';
+            } else {
+                var url = 'http://localhost:8080/engine-rest/task?candidateGroups=' + candidateGroups;
+            }
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("GET", url, false);
+            xhttp.send();
+            var statusCode = xhttp.status;
+            if (statusCode == 200) {
+                var response = JSON.parse(xhttp.responseText);
+            } else {
+                if (statusCode == 204) {
+                    document.getElementById("title").innerHTML = "<p>[]</p>";
+                } else {
+                    document.getElementById("title").innerHTML = "<p>Erro: " + statusCode + "</p>";
+                }
+            }
+        </script>
+        <script>
+            var tabela = "<table class='table'><thead><tr><th scope='col'>#</th><th scope='col'>Approve</th><th scope='col'>Task</th><th scope='col'>Id</th></tr></thead><tbody>";
+            for (var i = 0; i < response.length; i++) {
+                var n = i;
+                tabela = tabela + "<tr><th scope='row'>" + ++n + "</th>";
+                tabela = tabela + "<td><div id='icone" + i + "'><input class='form-check-input' type='checkbox' value='' id='complete" + i + "'></div></td>";
+                tabela = tabela + "<td>" + response[i].name + "</td>";
+                tabela = tabela + "<td>" + response[i].id + "</td>";
+                tabela = tabela + "</tr>";
+            }
+            tabela = tabela + "</tbody></table>";
+            document.getElementById("tasks").innerHTML = tabela;
+        </script>
+        <script>
+            $('#completeTasks').click(function () {
+                for (var i = 0; i < response.length; i++) {
+                    if ($('#complete' + i).is(':checked')) {
+                        var url = "http://localhost:8080/engine-rest/task/" + response[i].id + "/complete";
+                        //alert(url +  " - " + i);
+                        const data = JSON.stringify({
+                            "variables": {
+                                "atributoPropostaAprovada": {
+                                    "value": true
+                                }
+                            }
+                        });
+                        const xhr = new XMLHttpRequest();
+                        xhr.withCredentials = true;
+                        xhr.addEventListener("readystatechange", function () {
+                            if (this.readyState === this.DONE) {
+                                console.log(this.responseText);
+                            }
+                        });
+                        xhr.open("POST", url, false);
+                        xhr.setRequestHeader("Content-Type", "application/json");
+                        xhr.send(data);
+                        if (xhr.status != 204) { 
+                            document.getElementById('icone' + i).innerHTML = '<span class="badge rounded-pill bg-danger">&#10008 ' + xhr.status + '</span>';
+                        } else {
+                            document.getElementById('icone' + i).innerHTML = '<span class="badge rounded-pill bg-success">&check; ' + xhr.status + '</span>';
+                        }
+                    }
+                }
+            });
+        </script>
+    </div>
+</body>
+
+</html>
